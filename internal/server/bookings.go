@@ -89,19 +89,23 @@ func CreateBooking(db database.Service) gin.HandlerFunc {
 
 func UpdateBooking(db database.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var booking database.Booking
+		var booking protocol.UpdateBookingMessage
 		if err := c.ShouldBindJSON(&booking); err != nil {
 			c.JSON(400, gin.H{"error": "Invalid input"})
 			return
 		}
 
 		bookingID := c.Param("bookingID")
-		if booking.ID != bookingID {
-			c.JSON(403, gin.H{"error": "You are not allowed to update this booking"})
-			return
+
+		b := database.Booking{
+			ID:         bookingID,
+			PropertyID: "", // This is not needed for update
+			StartDate:  booking.StartDate,
+			EndDate:    booking.EndDate,
+			GuestName:  booking.GuestName,
 		}
 
-		err := db.UpdateBooking(booking)
+		err := db.UpdateBooking(b)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "Failed to update booking"})
 			return
