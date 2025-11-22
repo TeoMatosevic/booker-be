@@ -3,6 +3,7 @@ package server
 import (
 	"booker-be/internal/database"
 	"booker-be/internal/session"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,9 +16,14 @@ func SetupRoutes(router *gin.Engine, db database.Service, sessionValidator sessi
 
 		// Whitelist of allowed origins - configure based on environment
 		allowedOrigins := map[string]bool{
-			"http://localhost:5173":  true, // Vite dev server
-			"http://localhost:3000":  true, // Alternative dev port
-			"https://yourdomain.com": true, // Production domain (replace with actual domain)
+			"http://localhost:5173": true, // Vite dev server
+			"http://localhost:3000": true, // Alternative dev port
+		}
+
+		// Add production frontend URL from environment variable
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL != "" {
+			allowedOrigins[frontendURL] = true
 		}
 
 		// Check if origin is in whitelist
