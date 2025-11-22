@@ -57,16 +57,16 @@ func (s *Service) GetAllGroupCodes() ([]GroupCode, error) {
 func (s *Service) GetGroupCodeByID(id string) (GroupCode, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	var result []GroupCode
+	var result GroupCode
 	err := s.db.QueryRow("SELECT * FROM "+s.groupCodesTable+" WHERE id = ?", id).Scan(
-		&result[0].ID,
-		&result[0].GroupID,
-		&result[0].Code,
-		&result[0].ActiveTo)
+		&result.ID,
+		&result.GroupID,
+		&result.Code,
+		&result.ActiveTo)
 	if err != nil {
 		return GroupCode{}, err
 	}
-	return result[0], nil
+	return result, nil
 }
 
 func (s *Service) GetGroupCodeByCode(code string) (GroupCode, error) {

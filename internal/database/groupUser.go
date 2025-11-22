@@ -100,3 +100,28 @@ func (s *Service) InsertGroupUser(result GroupUser) error {
 
 	return nil
 }
+
+// UserBelongsToGroup checks if a user is a member of a group
+func (s *Service) UserBelongsToGroup(userID, groupID string) bool {
+	_, err := s.GetGroupUserByUserIDAndGroupID(userID, groupID)
+	return err == nil
+}
+
+// UserBelongsToPropertyGroup checks if a user belongs to the group that owns a property
+func (s *Service) UserBelongsToPropertyGroup(userID, propertyID string) bool {
+	property, err := s.GetPropertyByID(propertyID)
+	if err != nil {
+		return false
+	}
+	return s.UserBelongsToGroup(userID, property.GroupID)
+}
+
+// UserCanAccessBooking checks if a user can access a booking
+// (belongs to the group that owns the property that the booking is for)
+func (s *Service) UserCanAccessBooking(userID, bookingID string) bool {
+	booking, err := s.GetBookingByID(bookingID)
+	if err != nil {
+		return false
+	}
+	return s.UserBelongsToPropertyGroup(userID, booking.PropertyID)
+}

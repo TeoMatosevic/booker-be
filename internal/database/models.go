@@ -18,6 +18,7 @@ type Property struct {
 	CreatedAt string `json:"created_at"`
 	GroupID   string `json:"group_id"`
 	Name      string `json:"name"`
+	Color     string `json:"color"`
 }
 
 type Booking struct {
@@ -28,6 +29,8 @@ type Booking struct {
 	StartDate  string `json:"start_date"`
 	EndDate    string `json:"end_date"`
 	GuestName  string `json:"guest_name"`
+	Adults     int    `json:"adults"`
+	Children   int    `json:"children"`
 }
 
 type GroupUser struct {

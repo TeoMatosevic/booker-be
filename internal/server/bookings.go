@@ -9,8 +9,65 @@ import (
 
 func GetBookingsByPropertyID(db database.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		propertyID := c.Param("propertyID")
+
+		// Check if user belongs to the group that owns this property
+		if !db.UserBelongsToPropertyGroup(userID.(string), propertyID) {
+			c.JSON(403, gin.H{"error": "Forbidden: You don't have access to this property"})
+			return
+		}
+
 		bookings, err := db.GetBookingsByPropertyID(propertyID)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to retrieve bookings"})
+			return
+		}
+		c.JSON(200, bookings)
+	}
+}
+
+func GetBookingsByGroupID(db database.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		groupID := c.Param("groupID")
+
+		// Check if user belongs to the group
+		if !db.UserBelongsToGroup(userID.(string), groupID) {
+			c.JSON(403, gin.H{"error": "Forbidden: You don't have access to this group"})
+			return
+		}
+
+		// Get all properties for the group
+		properties, err := db.GetPropertiesByGroupID(groupID)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to retrieve properties"})
+			return
+		}
+
+		// Extract property IDs
+		propertyIDs := make([]string, len(properties))
+		for i, p := range properties {
+			propertyIDs[i] = p.ID
+		}
+
+		// Get bookings for all properties
+		if len(propertyIDs) == 0 {
+			c.JSON(200, []database.Booking{})
+			return
+		}
+
+		bookings, err := db.GetBookingsByPropertyIds(propertyIDs)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "Failed to retrieve bookings"})
 			return
@@ -21,6 +78,12 @@ func GetBookingsByPropertyID(db database.Service) gin.HandlerFunc {
 
 func CreateBooking(db database.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		propertyID := c.Param("propertyID")
 		var booking protocol.CreateBookingMessage
 		if err := c.ShouldBindJSON(&booking); err != nil {
@@ -37,6 +100,12 @@ func CreateBooking(db database.Service) gin.HandlerFunc {
 		_, err := db.GetPropertyByID(propertyID)
 		if err != nil {
 			c.JSON(404, gin.H{"error": "Property not found"})
+			return
+		}
+
+		// Check if user belongs to the group that owns this property
+		if !db.UserBelongsToPropertyGroup(userID.(string), propertyID) {
+			c.JSON(403, gin.H{"error": "Forbidden: You don't have access to this property"})
 			return
 		}
 
@@ -76,6 +145,8 @@ func CreateBooking(db database.Service) gin.HandlerFunc {
 			StartDate:  booking.StartDate,
 			EndDate:    booking.EndDate,
 			GuestName:  booking.GuestName,
+			Adults:     booking.Adults,
+			Children:   booking.Children,
 		}
 
 		err = db.InsertBooking(b)
@@ -89,6 +160,12 @@ func CreateBooking(db database.Service) gin.HandlerFunc {
 
 func UpdateBooking(db database.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		var booking protocol.UpdateBookingMessage
 		if err := c.ShouldBindJSON(&booking); err != nil {
 			c.JSON(400, gin.H{"error": "Invalid input"})
@@ -97,12 +174,20 @@ func UpdateBooking(db database.Service) gin.HandlerFunc {
 
 		bookingID := c.Param("bookingID")
 
+		// Check if user can access this booking
+		if !db.UserCanAccessBooking(userID.(string), bookingID) {
+			c.JSON(403, gin.H{"error": "Forbidden: You don't have access to this booking"})
+			return
+		}
+
 		b := database.Booking{
 			ID:         bookingID,
 			PropertyID: "", // This is not needed for update
 			StartDate:  booking.StartDate,
 			EndDate:    booking.EndDate,
 			GuestName:  booking.GuestName,
+			Adults:     booking.Adults,
+			Children:   booking.Children,
 		}
 
 		err := db.UpdateBooking(b)
@@ -116,7 +201,20 @@ func UpdateBooking(db database.Service) gin.HandlerFunc {
 
 func DeleteBooking(db database.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		bookingID := c.Param("bookingID")
+
+		// Check if user can access this booking
+		if !db.UserCanAccessBooking(userID.(string), bookingID) {
+			c.JSON(403, gin.H{"error": "Forbidden: You don't have access to this booking"})
+			return
+		}
+
 		err := db.DeleteBooking(bookingID)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "Failed to delete booking"})

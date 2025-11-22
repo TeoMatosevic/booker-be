@@ -16,7 +16,9 @@ func CreateBookingsTable(db *sql.DB) error {
 		property_id string not null,
 		start_date string,
 		end_date string,
-		guest_name string
+		guest_name string,
+		adults integer default 0,
+		children integer default 0
 	);
 	`
 
@@ -24,6 +26,18 @@ func CreateBookingsTable(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+
+	// Migration: Add adults and children columns if they don't exist
+	_, err = db.Exec(`ALTER TABLE bookings ADD COLUMN adults integer DEFAULT 0;`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+
+	_, err = db.Exec(`ALTER TABLE bookings ADD COLUMN children integer DEFAULT 0;`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+
 	return nil
 }
 
@@ -50,7 +64,9 @@ func (s *Service) GetAllBookings() ([]Booking, error) {
 			&result.PropertyID,
 			&result.StartDate,
 			&result.EndDate,
-			&result.GuestName); err != nil {
+			&result.GuestName,
+			&result.Adults,
+			&result.Children); err != nil {
 			return nil, err
 		}
 		results = append(results, result)
@@ -70,7 +86,9 @@ func (s *Service) GetBookingByID(id string) (Booking, error) {
 		&result.PropertyID,
 		&result.StartDate,
 		&result.EndDate,
-		&result.GuestName)
+		&result.GuestName,
+		&result.Adults,
+		&result.Children)
 	if err != nil {
 		return Booking{}, err
 	}
@@ -95,7 +113,9 @@ func (s *Service) GetBookingsByPropertyID(propertyID string) ([]Booking, error) 
 			&result.PropertyID,
 			&result.StartDate,
 			&result.EndDate,
-			&result.GuestName); err != nil {
+			&result.GuestName,
+			&result.Adults,
+			&result.Children); err != nil {
 			return nil, err
 		}
 		results = append(results, result)
@@ -127,7 +147,9 @@ func (s *Service) GetBookingsByPropertyIds(propertyIDs []string) ([]Booking, err
 			&result.PropertyID,
 			&result.StartDate,
 			&result.EndDate,
-			&result.GuestName); err != nil {
+			&result.GuestName,
+			&result.Adults,
+			&result.Children); err != nil {
 			return nil, err
 		}
 		results = append(results, result)
@@ -139,14 +161,16 @@ func (s *Service) InsertBooking(result Booking) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	_, err := s.db.Exec("INSERT INTO "+s.bookingsTable+
-		" (id, created_at, created_by, property_id, start_date, end_date, guest_name) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		" (id, created_at, created_by, property_id, start_date, end_date, guest_name, adults, children) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		result.ID,
 		result.CreatedAt,
 		result.CreatedBy,
 		result.PropertyID,
 		result.StartDate,
 		result.EndDate,
-		result.GuestName)
+		result.GuestName,
+		result.Adults,
+		result.Children)
 
 	if err != nil {
 		return err
@@ -159,10 +183,12 @@ func (s *Service) UpdateBooking(result Booking) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	_, err := s.db.Exec("UPDATE "+s.bookingsTable+
-		" SET start_date = ?, end_date = ?, guest_name = ? WHERE id = ?",
+		" SET start_date = ?, end_date = ?, guest_name = ?, adults = ?, children = ? WHERE id = ?",
 		result.StartDate,
 		result.EndDate,
 		result.GuestName,
+		result.Adults,
+		result.Children,
 		result.ID)
 
 	if err != nil {

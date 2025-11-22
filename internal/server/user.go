@@ -24,7 +24,12 @@ func RegisterUser(db database.Service) gin.HandlerFunc {
 			return
 		}
 
-		hashedPassword := protocol.Sha256Hash(user.Password)
+		hashedPassword, err := protocol.HashPassword(user.Password)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to hash password"})
+			return
+		}
+
 		id := protocol.GenerateID()
 
 		err = db.InsertUser(database.User{
@@ -56,7 +61,7 @@ func LoginUser(db database.Service, sessionStore *session.Store) gin.HandlerFunc
 			return
 		}
 
-		if dbUser.HashedPassword != protocol.Sha256Hash(user.Password) {
+		if !protocol.CheckPasswordHash(user.Password, dbUser.HashedPassword) {
 			c.JSON(401, gin.H{"error": "Invalid username or password"})
 			return
 		}
